@@ -19,6 +19,7 @@ Executable sdltemplate
   Main-is:           MainWrapper.hs
   C-Sources:         mainc.c
   Ghc-options:       -no-hs-main
+  hs-source-dirs:    src
   Build-depends:     base
                    , SDL >= 0.6.5
                    , SDL-image >= 0.6.1
@@ -31,4 +32,3 @@ Executable sdltemplate
                    , newtype >= 0.2
                    , vector-space >= 0.8.6
                    , transformers >= 0.3.0.0
-
