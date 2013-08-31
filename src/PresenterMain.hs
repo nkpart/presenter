@@ -3,7 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ImplicitParams #-}
-module SDLTemplate where
+module PresenterMain where
 
 import FSB.Renderer.SDL (initRenderer)
 import Data.Maybe (mapMaybe)

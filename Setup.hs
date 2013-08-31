@@ -17,7 +17,7 @@ import Data.Maybe (fromJust)
 applist :: [FilePath] -> [MacApp]
 applist resources = [
     MacApp
-        "SDLTemplate"
+        "Presenter"
         Nothing
         Nothing -- Build a default Info.plist for the icon.
         -- list or resources (to be copied to .app/Contents/Resources)
