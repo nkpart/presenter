@@ -14,15 +14,6 @@ import qualified Graphics.UI.SDL.Image as SDLI
 
 import FSB.Renderer
 
-data SDLRenderer = SDLRenderer {
-                    _screen :: SDL.Surface,
-                    _sheep :: SDL.Surface
-                  }
-
-initRenderer = do
-    r <- SDLRenderer <$> (SDL.setVideoMode C.width C.height 32 [SDL.SWSurface]) <*> SDLI.load "sheep.png"
-    return $ Renderer (drawGame r)
-
 cloudRects w d  = [
                  BLRect d 0 (w - 2 * d) (d `div` 2),
                  BLRect 0 (d `div` 2) w d,
