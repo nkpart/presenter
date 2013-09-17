@@ -1,17 +1,18 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module BFPG where
 
-import Data.Monoid ()
+import Data.Monoid
 import SlideTypes
 import Control.Wire
 
 bfpg = [
-       Subtitled "Programming Games in Haskell" "Nick Partridge",
-       Title "Two",
-       Title "Three",
-       Title "Four",
-       GenText $ cycleW ["a", "b", "c"],
-       GenText $ cycleW ["1", "2", "3"]
+         Subtitled "Programming Games in Haskell" "Nick Partridge"
+       , Title "Two" <> Title "________"
+       , Title "Three"
+       , Title "Four"
+       , GenText (pure "abc: ") <> GenText (fmap ("     " <>) $ (periodicallyI 2  >>> cycleW ["a", "b", "c"]) <|> pure "")
+       , GenText (pure "abc: ") <> GenText (fmap ("     " <>) $ (cycleW ["a", "b", "c"]) >>> periodicallyI 1 <|> pure "") -- example of preceding operator vs proceding
+       , GenText $ cycleW ["1", "2", "3"]
        ]
 
 -- data Wire' a b = Wire' (f :: Time -> a -> (Either Error b, Wire' a b) )
