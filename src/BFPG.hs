@@ -6,10 +6,10 @@ import SlideTypes
 import Control.Wire
 
 bfpg = [
-       Title "Programming Games in Haskell" "#252525",
-       Title "Two" "#154535",
-       Title "Three" "#252525",
-       Title "Four" "#A527F5",
+       Subtitled "Programming Games in Haskell" "Nick Partridge",
+       Title "Two",
+       Title "Three",
+       Title "Four",
        GenText $ cycleW ["a", "b", "c"],
        GenText $ cycleW ["1", "2", "3"]
        ]

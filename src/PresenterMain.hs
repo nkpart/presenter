@@ -1,8 +1,8 @@
-{-# LANGUAGE Arrows #-}
+-- {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ImplicitParams #-}
+-- {-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE Rank2Types #-}
 module PresenterMain where
@@ -19,6 +19,7 @@ import Graphics.UI.SDL as SDL
 import Graphics.UI.SDL.Image as SDLI
 import Graphics.UI.SDL.TTF as SDLF
 import SlideTypes
+import SDLStuff
 import BFPG
 
 data Slider = Slider {
@@ -27,15 +28,20 @@ data Slider = Slider {
             , _sliderSheep :: Surface
   }
 
-withSlider :: (Slider -> IO a) -> IO ()
+data Theme = Theme {
+           _titleFont :: Font,
+           _subtitleFont :: Font,
+           _backgroundColor :: String
+}
+
+withSlider :: (Theme -> Surface -> IO a) -> IO ()
 withSlider f = SDL.withInit [SDL.InitEverything] $ do
   SDLF.init
   window_ <- SDL.setVideoMode 800 600 32 [SDL.SWSurface]
-  font <- SDLF.openFont "SourceCodePro-Medium.ttf" 28
-  sheep <- SDLI.load "sheep.png"
-  f $ Slider window_ font sheep
+  theme <- Theme <$> SDLF.openFont "SourceCodePro-Bold.ttf" 40 <*> SDLF.openFont "SourceCodePro-Medium.ttf" 28 <*> pure "#252525"
+  -- sheep <- SDLI.load "sheep.png"
+  f theme window_ -- $ Slider window_ font sheep
   SDLF.quit
-
 
 data Nav = GoLeft | GoRight deriving Show
 
@@ -67,19 +73,16 @@ slideWire as@(a, _) = switch (keysDownW >>> keysToNav >>> zipperNavigator (mkZip
   where keysToNav = pure (Just GoRight) >>> periodically 1 <|> pure Nothing
 
 main :: IO ()
-main = withSlider $ \slider -> do
-    go slider bfpg
+main = withSlider $ \theme window -> do
+    go theme window bfpg
     return ()
   where
-    go slider slides = go_ clockSession $ slideWire $ unsafeNEL $ cycle $ fmap showSlide slides
+    go theme window slides = go_ clockSession (slideWire . unsafeNEL . cycle . fmap showSlide $ slides)
       where go_ s w = do
                 (f, nextWire, session) <- stepSession_ w s Nothing
                 f window
                 go_ session nextWire
-            showSlide = renderSlide sheep font
-            window = _sliderSurface slider
-            sheep = _sliderSheep slider
-            font = _sliderTitleFont slider
+            showSlide = renderSlide window theme
 
 keysDownW = mkStateM mempty $ \_ (_, keys) -> do
   newKeys <- parseEvents keys
@@ -96,21 +99,27 @@ parseEvents keysDown = do
     SDL.Quit -> error "Done"
     _ -> parseEvents keysDown
 
-renderSlide :: Monad m => SDL.Surface -> SDLF.Font -> Slide e m a -> (Wire e m a (Surface -> IO ()))
-renderSlide sheep font r = 
+layFoundation window (Theme {..}) = paintScreen window $ css2color _backgroundColor
+
+renderSlide :: Monad m => SDL.Surface -> Theme -> Slide e m a -> Wire e m a (Surface -> IO ())
+renderSlide sheep theme@(Theme {..}) r = fmap (\f window -> layFoundation window theme >> f window >> SDL.flip window) $ 
                 case r of 
-                  Title xxx color -> pure $ \window -> do
-                    paintScreen window $ css2color color
+                  Title title -> pure $ \window -> do
                     SDL.blitSurface sheep Nothing window $ Just $ SDL.Rect 0 0 100 100
-                    text <- SDLF.renderTextShaded font xxx (SDL.Color 255 255 255) (SDL.Color 0 0 0)
+                    text <- SDLF.renderTextBlended _titleFont title (SDL.Color 255 0 255)
                     SDL.blitSurface text Nothing window $ Just $ SDL.Rect 100 100 100 100
-                    SDL.flip window
+                    return ()
+                  Subtitled main lesser -> pure $ \window -> do
+                    text <- SDLF.renderTextBlended _titleFont main (SDL.Color 255 0 255)
+                    SDL.blitSurface text Nothing window $ Just $ SDL.Rect 100 100 100 100
+                    text2 <- SDLF.renderTextBlended _subtitleFont lesser (SDL.Color 255 0 255)
+                    SDL.blitSurface text2 Nothing window $ Just $ SDL.Rect 100 200 100 100
+                    return ()
                   DisplayWire _ -> pure $ \window -> return ()
                   GenText w -> w >>> arr (\t window -> do
-                                              paintScreen window (25, 25, 25)
                                               SDL.blitSurface sheep Nothing window $ Just $ SDL.Rect 0 0 100 100
-                                              text <- SDLF.renderTextShaded font t (SDL.Color 255 255 255) (SDL.Color 0 0 0)
+                                              text <- SDLF.renderTextBlended _titleFont t (SDL.Color 255 255 255)
                                               SDL.blitSurface text Nothing window $ Just $ SDL.Rect 100 100 100 100
-                                              SDL.flip window
+                                              return ()
                                          )
 
