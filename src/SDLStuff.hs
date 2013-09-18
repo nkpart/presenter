@@ -3,7 +3,7 @@ module SDLStuff where
 
 import Graphics.UI.SDL as SDL
 -- import Graphics.UI.SDL.Image as SDLI
--- import Graphics.UI.SDL.TTF as SDLF
+import Graphics.UI.SDL.TTF as SDLF
 import qualified Control.Monad as M
 
 -- SDL Helpers
@@ -11,7 +11,12 @@ paintWithRGB screen r g b z = (SDL.mapRGB . SDL.surfaceGetPixelFormat) screen r 
 
 paintScreen screen (r, g, b) = paintWithRGB screen (round r) (round g) (round b) $ SDL.fillRect screen Nothing
 
-paintRect screen height (r, g, b) rect = M.void $ paintWithRGB screen (round r) (round g) (round b) $ SDL.fillRect screen rect -- (Just $ toSDLRect height rect)
+paintRect screen (r, g, b) rect = M.void $ paintWithRGB screen (round r) (round g) (round b) $ SDL.fillRect screen rect -- (Just $ toSDLRect height rect)
+
+drawString screen (r, g, b) string font (x, y) = do
+                                                  text <- SDLF.renderTextBlended font string (SDL.Color r g b)
+                                                  SDL.blitSurface text Nothing screen $ Just $ SDL.Rect x y 100 100
+                                                  return ()
 
 -- CSS color -> Color
 -- "#AABBCC"

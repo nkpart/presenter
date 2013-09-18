@@ -3,11 +3,13 @@ module SlideTypes where
 
 import Control.Wire
 import Data.Monoid
+import qualified Graphics.UI.SDL as SDL
 
 data Slide e m a = Title String
            | Subtitled String String
            | GenText (Wire e m a String)
-           | forall b. (Show e, Show a, Show b) => DisplayWire (Wire e IO a b)
+           | ShowCode String
+           | Raw (Wire e m a (SDL.Surface -> IO ()))
            | Layered (Slide e m a) (Slide e m a)
            | Blank
 

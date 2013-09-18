@@ -34,3 +34,4 @@ Executable presenter
                    , SDL-ttf
                    , template-haskell
                    , haskell-src-exts
+                   , directory
