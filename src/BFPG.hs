@@ -12,7 +12,7 @@ import Text.Printf (printf)
 import Data.List (intercalate)
 import qualified Control.Monad as M
 
-bfpg codeFont tagFont = intro ++ gameLoops ++ buildingSky ++ movingObjects ++ problems
+bfpg codeFont tagFont = intro ++ gameLoops ++ introToWires ++ buildingSky ++ movingObjects ++ problems
   where intro = [
                  Subtitled "Programming Games in Haskell" "Nick Partridge - @nkpart - nkpart@gmail.com"
                , bulleted "Bio" [ "Not a games programmer"
@@ -27,20 +27,33 @@ bfpg codeFont tagFont = intro ++ gameLoops ++ buildingSky ++ movingObjects ++ pr
                                  , "CampJS is also super rad"
                                  , "DEMO"]
                , Bulleted "Topics" [ "Game Loops"
+                                   , "Intro to Wires"
                                    , "Building the Sky"
                                    , "An Object"
                                    , "Problems/Gotchas"
                                    ]
                 <> Raw (pure $ \window -> do
-                       M.forM_ (zip "⟳★△☹" [0..]) $ \(t,idx) -> do
+                       M.forM_ (zip "⟳→★△☹" [0..]) $ \(t,idx) -> do
                          drawString window (255,255,255) (t:[]) tagFont (500, 130 + (idx * 80))
                        return ())
                ]
 
-        gameLoops = tagAll "⟳" [Title "Game Loops"]
-        buildingSky = tagAll "★" [Title "Building Sky"]
-        movingObjects = tagAll "△" [Title "Moving Objects"]
-        problems = tagAll "☹" [Title "Problems/Gotchas"]
+        gameLoops = tagAll "⟳" [ Title "Game Loops"]
+
+        introToWires = tagAll "→" [ Title "Intro to Wires"]
+
+        buildingSky = tagAll "★" [ Title "Building Sky"
+                                 , Raw (fastTime >>> arr (\t window -> drawString window (255,255,255) (floatString t) codeFont (50, 100)))
+                                 <> ShowCode "time :: Wire e m a Time"
+                                 , Raw (fastTimeFrom 17 >>^ (\t -> t `mod'` 24) >>> arr (\t window -> drawString window (255,255,255) (floatString t) codeFont (50, 100)))
+                                 <> ShowCode "timeFrom 17 >>^ (\\t -> t `mod'` 24))"
+                                 ]
+
+        movingObjects = tagAll "△" [ Title "Moving Objects"
+                                   ]
+
+        problems = tagAll "☹" [ Title "Problems/Gotchas"
+                              ]
         
        -- , Title "Three"
        -- , Title "EXAMPLES"
@@ -50,14 +63,11 @@ bfpg codeFont tagFont = intro ++ gameLoops ++ buildingSky ++ movingObjects ++ pr
        --   <> ShowCode "periodically 0.5 >>> cycleW \"bfpg\""
        -- , GenText (fmap (:[]) $ hold ' ' (cycleW "bfpg" >>> periodically 0.5)) -- example of preceding operator vs proceding
        --   <> ShowCode "cycleW \"bfpg\" >>> periodically 0.5"
-       -- , Raw (fastTime >>> arr (\t window -> drawString window (255,255,255) (floatString t) codeFont (50, 100)))
-       --   <> ShowCode "time"
-       --   -- this is not 17 because fastTime multiples by 6
        -- , Raw (fastTimeFrom (17 / timeScale) >>^ (\t -> t `mod'` 24) >>> arr (\t window -> drawString window (255,255,255) (floatString t) codeFont (50, 100)))
        --   <> ShowCode "timeFrom 17 >>^ (\\t -> t `mod'` 24))"
 
 fastTime = time >>^ (* timeScale)
-fastTimeFrom x = timeFrom x >>^ (* timeScale)
+fastTimeFrom x = timeFrom (x / timeScale) >>^ (* timeScale)
 
 floatString t = printf "%.2f" t
 
