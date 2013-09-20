@@ -1,3 +1,6 @@
 
  * centred text
- * wire runner with code at the bottom
+ * sofia pro
+ * image slides
+* X/Y/A/B images in the corner of slides?!
+

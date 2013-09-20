@@ -14,7 +14,7 @@ paintScreen screen (r, g, b) = paintWithRGB screen (round r) (round g) (round b)
 paintRect screen (r, g, b) rect = M.void $ paintWithRGB screen (round r) (round g) (round b) $ SDL.fillRect screen rect -- (Just $ toSDLRect height rect)
 
 drawString screen (r, g, b) string font (x, y) = do
-                                                  text <- SDLF.renderTextBlended font string (SDL.Color r g b)
+                                                  text <- SDLF.renderUTF8Blended font string (SDL.Color r g b)
                                                   SDL.blitSurface text Nothing screen $ Just $ SDL.Rect x y 100 100
                                                   return ()
 

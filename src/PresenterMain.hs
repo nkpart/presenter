@@ -30,11 +30,16 @@ data Theme = Theme {
            _titleFont :: Font, 
            _subtitleFont :: Font, 
            _codeFont :: Font, 
+           _tagFont :: Font,
            _backgroundColor :: String 
            }
 
 macFont f s = do
-    let prefixes = ["/Library/Fonts/", "/Users/nkpart/Library/Fonts/"]
+    let prefixes = ["/System/Library/Fonts/"
+                   , "/Library/Fonts/"
+                   , "/Users/nkpart/Library/Fonts/"
+                   , "/Library/Fonts/Microsoft/"
+                   ]
         paths = fmap (++ f) prefixes
     toOpen <- head <$> M.filterM doesFileExist paths
     SDLF.openFont toOpen s
@@ -43,9 +48,10 @@ withSlider :: (Theme -> Surface -> IO a) -> IO ()
 withSlider f = SDL.withInit [SDL.InitEverything] $ do
   SDLF.init
   window_ <- SDL.setVideoMode 800 600 32 [SDL.SWSurface]
-  theme <- Theme <$> macFont "Comic Sans MS Bold.ttf" 40 
-                 <*> macFont "Comic Sans MS.ttf" 28 
+  theme <- Theme <$> macFont "SofiaProLight.ttf" 40 
+                 <*> macFont "SofiaProLight.ttf" 28 
                  <*> macFont "SourceCodePro-Medium.ttf" 28 
+                 <*> macFont "Apple Symbols.ttf" 72 
                  <*> pure "#252525"
   -- sheep <- SDLI.load "sheep.png"
   f theme window_ -- $ Slider window_ font sheep
@@ -70,7 +76,7 @@ slideWire as@(a, _) = switch (keyReleasesW >>> keysToNav' >>> zipperNavigator (m
 
 main :: IO ()
 main = withSlider $ \theme window -> do
-    go theme window $ bfpg (_codeFont theme)
+    go theme window $ bfpg (_codeFont theme) (_tagFont theme)
     return ()
   where
     go theme window slides = go_ clockSession (slideWire . unsafeNEL . cycle . fmap showSlide $ slides)
@@ -118,27 +124,38 @@ renderSlide sheep (Theme {..}) slide = fmap (\f window -> layFoundation window >
                         returnA -< (\window -> f window >> g window)
                       Title title -> pure $ \window -> do
                         SDL.blitSurface sheep Nothing window $ Just $ SDL.Rect 0 0 100 100
-                        text <- SDLF.renderTextBlended _titleFont title (SDL.Color 255 255 255)
-                        SDL.blitSurface text Nothing window $ Just $ SDL.Rect 100 100 100 100
+                        text <- SDLF.renderUTF8Blended _titleFont title (SDL.Color 255 255 255)
+                        SDL.blitSurface text Nothing window $ Just $ SDL.Rect 50 50 100 100
                         return ()
                       Subtitled main lesser -> pure $ \window -> do
                         text <- SDLF.renderTextBlended _titleFont main (SDL.Color 255 255 255)
-                        SDL.blitSurface text Nothing window $ Just $ SDL.Rect 100 100 100 100
+                        SDL.blitSurface text Nothing window $ Just $ SDL.Rect 50 50 100 100
                         text2 <- SDLF.renderTextBlended _subtitleFont lesser (SDL.Color 255 255 255)
-                        SDL.blitSurface text2 Nothing window $ Just $ SDL.Rect 100 200 100 100
+                        SDL.blitSurface text2 Nothing window $ Just $ SDL.Rect 50 150 100 100
+                        return ()
+                      Bulleted main points -> pure $ \window -> do
+                        text <- SDLF.renderUTF8Blended _titleFont main (SDL.Color 255 255 255)
+                        SDL.blitSurface text Nothing window $ Just $ SDL.Rect 50 50 100 100
+                        M.forM_ (zip points [0..]) $ \(text, index) -> do
+                          text2 <- SDLF.renderUTF8Blended _subtitleFont text (SDL.Color 255 255 255)
+                          SDL.blitSurface text2 Nothing window $ Just $ SDL.Rect 50 (150 + index * 80) 100 100
                         return ()
                       -- DisplayWire _ -> pure $ \window -> return ()
-                      ShowCode code -> (pure $ \window -> do
+                      ShowCode code -> pure $ \window -> do
                         renderedCode <- SDLF.renderTextBlended _codeFont code (SDL.Color 255 255 255)
                         paintRect window (0, 0, 0) $ Just $ SDL.Rect 0 500 800 100
                         SDL.blitSurface renderedCode Nothing window $ Just $ SDL.Rect 50 530 100 100
-                        return ())
+                        return ()
+                      Tagged symbol -> pure $ \window -> do
+                        SDL.blitSurface sheep Nothing window $ Just $ SDL.Rect 0 0 100 100
+                        text <- SDLF.renderUTF8Blended _tagFont symbol (SDL.Color 255 255 255)
+                        SDL.blitSurface text Nothing window $ Just $ SDL.Rect 720 30 100 100
+                        return ()
                       Raw f -> f
                       Blank -> pure $ \window -> return ()
-                      GenText w -> w >>> arr (\t window -> do
-                                                  SDL.blitSurface sheep Nothing window $ Just $ SDL.Rect 0 0 100 100
-                                                  text <- SDLF.renderTextBlended _titleFont t (SDL.Color 255 255 255)
-                                                  SDL.blitSurface text Nothing window $ Just $ SDL.Rect 100 100 100 100
-                                                  return ()
-                                             )
+                      GenText w -> w >>^ (\t window -> do
+                                                SDL.blitSurface sheep Nothing window $ Just $ SDL.Rect 0 0 100 100
+                                                text <- SDLF.renderTextBlended _titleFont t (SDL.Color 255 255 255)
+                                                SDL.blitSurface text Nothing window $ Just $ SDL.Rect 100 100 100 100
+                                                return ())
         layFoundation window = paintScreen window $ css2color $ _backgroundColor
