@@ -1,4 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleInstances #-}
 module BFPG where
 
 import Data.VectorSpace hiding (Sum, getSum)
@@ -17,7 +18,7 @@ import qualified Config as C
 
 leftMargin = 50
 
-bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ buildingSky ++ movingObjects ++ problems
+bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ buildingSky ++ movingObjects ++ problems ++ wrapup
   where intro = [
                  Subtitled "Programming Games in Haskell" "Nick Partridge - @nkpart - nkpart@gmail.com"
                , bulleted "Bio" [ "Not a games programmer"
@@ -128,6 +129,7 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                                                    ," "
                                                    ,"timeCycle >>^ fractionToNight >>^ skyColor"
                                                    ]
+                                 , skyBaseSlide <> Title "Background"
                                  , Title "Background"
                                  <>  Raw (timeCycle >>^ fractionToNight >>^ skyColor >>> arr (\c window ->
                                         paintRect window c $ Just (SDL.Rect 0 100 800 500)))
@@ -135,13 +137,44 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                                  <> Raw (timeCycle >>^ fractionToNight >>^ floatString >>^ drawCode' (leftMargin, 200))
                                  <> Raw (timeCycle >>^ fractionToNight >>^ skyColor >>^ show3 >>^ drawCode' (leftMargin, 300)) --drawColor' (SDL.Rect 100 0 100 100))
                                  <> ShowCode "timeCycle >>^ fractionToNight >>^ skyColor"
-                                 ]
+                                 , Subtitled "Stars" "Don't worry it's only 5 lines of code."
+                                 , bulleted "Star System" [
+                                                            "Stars are randomly produced"
+                                                          , "Stars are gradually removed"
+                                                          , "Stars only exist at night time"
+                                                          ]
+                                 , Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
+                                 , Raw (((timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
+                                  &&& (randomPosition >>^ show >>^ drawCode' (leftMargin, 200))) >>^ (\(a,b) w -> a w >> b w))
+                                 <> ShowCode "timeCycle &&& randomPosition"
+                                 , titledCode' "Star System" [
+                                                      "starSystem = accum modifier []"
+                                                      ,"  where modifier oldStars (h, newStar) "
+                                                      ,"          | h > 17.5 = newStar:oldStars"
+                                                      ,"          | h < 6 = if null oldStars"
+                                                      ,"                      then oldStars"
+                                                      ,"                      else tail oldStars"
+                                                      ,"          | otherwise = []"
+                                                             ]
+                                 , Raw ((timeCycle &&& randomPosition) >>> starSystem >>^ (\stars window -> do
+                                       drawCode' (leftMargin, 200) (show (length stars)) window
+                                       M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / fromIntegral 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
+                                       ))
+                                 <> Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
+                                 <> ShowCode "(timeCycle &&& randomPosition) >>> starSystem >>^ length"
+                                 , Title "Full Sky"
+                                 <>  Raw (timeCycle >>^ fractionToNight >>^ skyColor >>> arr (\c window ->
+                                        paintRect window c $ Just (SDL.Rect 0 100 800 500)))
+                                 <>  Raw ((timeCycle &&& randomPosition) >>> starSystem >>^ (\stars window -> do
+                                       M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / fromIntegral 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
+                                       ))
+                               ]
+
         show3 (a,b,c) = "(" ++ floatString a <> ", " <> floatString b <> ", " <> floatString c <> ")"
         fractionToNight hour = abs (hour - 12) / 12
         skyColor nightApproach = C.dayColor + (C.nightColor - C.dayColor) ^* nightApproach
         drawCode' pos = \text window -> drawString window (255,255,255) text codeFont pos
         drawColor' rect = \color window -> paintRect window color $ Just rect 
-        timeCycle = fastTimeFrom 17 >>^ (\t -> t `mod'` 24)
         skyBaseSlide = Raw (pure (\window -> do
                paintRect window C.dayColor $ Just (SDL.Rect 0 100 400 500) 
                drawString window (r3 C.nightColor) (show C.dayColor) codeFont (leftMargin, 150)
@@ -168,6 +201,8 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                                 
                                 <> ShowCode "Time -> a -> m (Either e b, Wire e m a b)"
                               ]
+
+        wrapup = []
        -- -- TODO: hold "" vs pure ""
        -- , Raw (fastTimeFrom (17 / timeScale) >>^ (\t -> t `mod'` 24) >>> arr (\t window -> drawString window (255,255,255) (floatString t) codeFont (50, 100)))
        --   <> ShowCode "timeFrom 17 >>^ (\\t -> t `mod'` 24))"
@@ -233,3 +268,21 @@ bulleted t s = Bulleted t $ fmap (" • " ++) s
 tagAll symbol = fmap (<> Tagged symbol)
 
 r3 (a,b,c) = (round a, round b, round c)
+
+starsW :: (Monoid e, Monad m, MonadRandom m) => Wire e m a [(Int, Int)]
+starsW = (timeCycle &&& randomPosition) >>> accum changeStars []
+  where changeStars oldStars (h, newStar) | h > 17.5 = newStar:oldStars
+                                          | h < 6 = if null oldStars then oldStars else tail oldStars
+                                          | otherwise = []
+
+starSystem = accum modifier []
+  where modifier oldStars (h, newStar) 
+          | h > 17.5 = newStar:oldStars
+          | h < 6 = if null oldStars then oldStars else tail oldStars
+          | otherwise = []
+
+
+randomPosition :: MonadRandom m => Wire e m a (Int, Int)
+randomPosition = liftA2 (,) (pure (0,800) >>> noiseRM) (pure (0,600) >>> noiseRM)
+
+timeCycle = fastTimeFrom 17 >>^ (\t -> t `mod'` 24)
