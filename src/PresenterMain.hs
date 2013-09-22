@@ -8,6 +8,7 @@
 
 module PresenterMain where
 
+import Graphics.UI.SDL.Joystick as SDLJ
 import Data.Maybe (listToMaybe)
 import qualified Control.Monad as M
 import Debug.Trace
@@ -45,8 +46,9 @@ macFont f s = do
     SDLF.openFont toOpen s
 
 withSlider :: (Theme -> Surface -> IO a) -> IO ()
-withSlider f = SDL.withInit [SDL.InitEverything] $ do
+withSlider f = SDL.withInit [SDL.InitEverything, SDL.InitJoystick] $ do
   SDLF.init
+  -- SDLJ.open 0
   window_ <- SDL.setVideoMode 800 600 32 [SDL.SWSurface]
   theme <- Theme <$> macFont "SofiaProLight.ttf" 40 
                  <*> macFont "SofiaProLight.ttf" 28 
@@ -76,42 +78,33 @@ slideWire as@(a, _) = switch (keyReleasesW >>> keysToNav' >>> zipperNavigator (m
 
 main :: IO ()
 main = withSlider $ \theme window -> do
+    -- print =<< SDLJ.name 0
     go theme window $ bfpg (_codeFont theme) (_tagFont theme)
     return ()
   where
     go theme window slides = go_ clockSession (slideWire . unsafeNEL . cycle . fmap showSlide $ slides)
       where go_ s w = do
+                -- SDLJ.update
+                -- joyIsOpen <- SDLJ.opened 0
+                -- M.unless joyIsOpen (M.void $ SDLJ.open 0)
                 (f, nextWire, session) <- stepSession_ w s Nothing
                 f window
                 go_ session nextWire
             showSlide = renderSlide window theme
 
-keysDownW = mkStateM mempty $ \_ (_, keys) -> do
-  newKeys <- parseEvents keys
-  return (Right newKeys, newKeys)
-
 keyReleasesW = mkFixM $ \t a -> do
   ks <- keyReleases []
   return $ Right ks
 
-parseEvents :: Set SDL.SDLKey -> IO (Set SDL.SDLKey)
-parseEvents keysDown = do
-  ev <- SDL.pollEvent
-  case ev of
-    SDL.NoEvent -> return keysDown
-    SDL.KeyDown k | SDL.symKey k == SDL.SDLK_q && elem SDL.KeyModLeftMeta (SDL.symModifiers k) -> error "Done"
-    SDL.KeyDown k -> parseEvents (Set.insert (SDL.symKey k) keysDown)
-    SDL.KeyUp k -> parseEvents (Set.delete (SDL.symKey k) keysDown)
-    SDL.Quit -> error "Done"
-    _ -> parseEvents keysDown
-
 keyReleases :: [SDL.SDLKey] -> IO [SDL.SDLKey]
 keyReleases ks = do
   ev <- SDL.pollEvent
+  M.unless (ev == SDL.NoEvent) $ print ev
   case ev of
     SDL.NoEvent -> return ks
     SDL.KeyDown k | SDL.symKey k == SDL.SDLK_q && elem SDL.KeyModLeftMeta (SDL.symModifiers k) -> error "Done"
     SDL.KeyUp k -> keyReleases (SDL.symKey k:ks) -- (Set.insert (SDL.symKey k) keysDown)
+    SDL.JoyButtonUp a b -> keyReleases ks
     SDL.Quit -> error "Done"
     _ -> keyReleases ks
 
@@ -138,7 +131,7 @@ renderSlide sheep (Theme {..}) slide = fmap (\f window -> layFoundation window >
                         SDL.blitSurface text Nothing window $ Just $ SDL.Rect 50 50 100 100
                         M.forM_ (zip points [0..]) $ \(text, index) -> do
                           text2 <- SDLF.renderUTF8Blended _subtitleFont text (SDL.Color 255 255 255)
-                          SDL.blitSurface text2 Nothing window $ Just $ SDL.Rect 50 (150 + index * 80) 100 100
+                          SDL.blitSurface text2 Nothing window $ Just $ SDL.Rect 50 (150 + index * 70) 100 100
                         return ()
                       -- DisplayWire _ -> pure $ \window -> return ()
                       ShowCode code -> pure $ \window -> do
@@ -158,4 +151,4 @@ renderSlide sheep (Theme {..}) slide = fmap (\f window -> layFoundation window >
                                                 text <- SDLF.renderTextBlended _titleFont t (SDL.Color 255 255 255)
                                                 SDL.blitSurface text Nothing window $ Just $ SDL.Rect 100 100 100 100
                                                 return ())
-        layFoundation window = paintScreen window $ css2color $ _backgroundColor
+        layFoundation window = paintScreen window $ css2color _backgroundColor
