@@ -26,6 +26,7 @@ import SDLStuff
 import BFPG
 import DataStructures
 import System.Directory
+import Control.Exception (catch)
 
 data Theme = Theme { 
            _titleFont :: Font, 
@@ -48,7 +49,7 @@ macFont f s = do
 withSlider :: (Theme -> Surface -> IO a) -> IO ()
 withSlider f = SDL.withInit [SDL.InitEverything, SDL.InitJoystick] $ do
   SDLF.init
-  SDLJ.open 0
+  -- SDLJ.open 0
   window_ <- SDL.setVideoMode 800 600 32 [SDL.SWSurface]
   theme <- Theme <$> macFont "SofiaProLight.ttf" 40 
                  <*> macFont "SofiaProLight.ttf" 28 
@@ -80,15 +81,16 @@ goalDtime = 1 / 30.0
 
 main :: IO ()
 main = withSlider $ \theme window -> do
-    print =<< SDLJ.name 0
-    go theme window $ bfpg (_codeFont theme) (_tagFont theme)
+    -- print =<< SDLJ.name 0
+    -- j <- SDLJ.open 0
+    go theme window $ bfpg (_codeFont theme) (_tagFont theme) Nothing -- (Just j)
     return ()
   where
     go theme window slides = go_ clockSession ((slideWire . unsafeNEL . cycle . fmap showSlide $ slides) &&& dtime )
       where go_ s w = do
-                SDLJ.update
-                joyIsOpen <- SDLJ.opened 0
-                M.unless joyIsOpen (M.void $ SDLJ.open 0)
+                -- SDLJ.update
+                -- joyIsOpen <- SDLJ.opened 0
+                -- M.unless joyIsOpen (M.void $ SDLJ.open 0)
                 ((f, dt), nextWire, session) <- stepSession_ w s Nothing
                 f window
                 M.when (dt < goalDtime) $ do
@@ -113,6 +115,7 @@ eventsToNav = arr $ listToMaybe . mapMaybe f
 allEvents = arr (\_ -> poll []) >>> perform
     where poll ks = do
             ev <- SDL.pollEvent
+            -- M.unless (ev == SDL.NoEvent) $ print ev
             case ev of
               SDL.NoEvent -> return ks
               SDL.KeyDown k | SDL.symKey k == SDL.SDLK_q && elem SDL.KeyModLeftMeta (SDL.symModifiers k) -> error "Done"
