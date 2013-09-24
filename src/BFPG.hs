@@ -8,14 +8,13 @@ import Graphics.UI.SDL.Joystick as SDLJ
 import Data.VectorSpace hiding (Sum, getSum)
 import Data.Monoid
 import SlideTypes
-import Control.Wire
+import Control.Wire hiding (window)
 import SDLStuff
 import qualified Graphics.UI.SDL as SDL
 import qualified Graphics.UI.SDL.TTF as SDLF
 import Data.Fixed
 import Prelude hiding ((.))
 import Text.Printf (printf)
-import Data.List (intercalate)
 import qualified Control.Monad as M
 import qualified Config as C
 
@@ -129,22 +128,22 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                                                "Time of Day"
                                                              , "Background color"
                                                              , "Stars"]
-                                 , Raw (time >>> arr (\t window -> drawString window (255,255,255) (floatString t) codeFont (leftMargin, 100)))
+                                 , displayFloat time 100
                                  <> ShowCode "time :: Wire e m a Time"
-                                 , Raw ((time >>> derivative_ const 0) >>> arr (\t window -> drawString window (255,255,255) (floatString t) codeFont (leftMargin, 100)))
+                                 , displayFloat (time >>> derivative_ const 0) 100
                                  <> ShowCode "time >>> derivative :: Wire e m a Time"
-                                 , Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
+                                 , displayFloat timeCycle 100
                                  <> ShowCode "timeFrom 17 >>^ (\\t -> t `mod'` 24)"
-                                 , Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
+                                 , displayFloat timeCycle 100
                                  <> ShowCode "timeCycle = timeFrom 17 >>^ (`mod` 24)"
-                                 , Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
-                                 <>  Raw (timeCycle >>^ fractionToNight >>^ floatString >>^ drawCode' (leftMargin, 200))
+                                 , displayFloat timeCycle 100
+                                 <> displayFloat fractionToNightW 200
                                  <> ShowCode "fractionToNight hour = abs (hour - 12) / 12"
-                                 , Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
-                                 <>  Raw (timeCycle >>^ fractionToNight >>^ floatString >>^ ("fractionToNight (nf) = " ++) >>^ drawCode' (leftMargin, 170))
-                                 <>  Raw (pure ("start = " ++ show C.dayColor) >>^ drawCode' (leftMargin, 240))
-                                 <>  Raw (pure ("end = " ++ show C.nightColor) >>^ drawCode' (leftMargin, 310))
-                                 <> Raw (timeCycle >>^ fractionToNight >>^ skyColor >>^ show3 >>^ ("skyColor = " ++) >>^ drawCode' (leftMargin, 380))
+                                 , displayFloat timeCycle 100 
+                                 <>  Raw (timeCycle >>^ fractionToNight >>^ floatString >>^ ("fractionToNight (nf) = " ++) >>^ drawCode' 170)
+                                 <>  Raw (pure ("start = " ++ show C.dayColor) >>^ drawCode' 240)
+                                 <>  Raw (pure ("end = " ++ show C.nightColor) >>^ drawCode' 310)
+                                 <> Raw (timeCycle >>^ fractionToNight >>^ skyColor >>^ show3 >>^ ("skyColor = " ++) >>^ drawCode' 380)
                                  <> ShowCode "skyColor nf = start + (end - start) ^* nf"
                                  , titledCode' "Background Components" ["timeCycle = timeFrom 17 >>^ (`mod` 24)"
                                                    ," "
@@ -159,10 +158,10 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                  , Title "Background"
                                  <> Raw (timeCycle >>^ fractionToNight >>^ skyColor >>> arr (\c window ->
                                         paintRect window c $ Just (SDL.Rect 0 100 800 500)))
-                                 <> Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
-                                 <> Raw (timeCycle >>^ fractionToNight >>^ floatString >>^ ("fractionToNight (nf) = " ++) >>^ drawCode' (leftMargin, 170))
-                                 <> Raw (pure ("start = " ++ show C.dayColor) >>^ drawCode' (leftMargin, 240))
-                                 <> Raw (pure ("end = " ++ show C.nightColor) >>^ drawCode' (leftMargin, 310))
+                                 <> displayFloat timeCycle 100
+                                 <> Raw (timeCycle >>^ fractionToNight >>^ floatString >>^ ("fractionToNight (nf) = " ++) >>^ drawCode' 170)
+                                 <> Raw (pure ("start = " ++ show C.dayColor) >>^ drawCode' 240)
+                                 <> Raw (pure ("end = " ++ show C.nightColor) >>^ drawCode' 310)
                                  <> ShowCode "timeCycle >>^ fractionToNight >>^ skyColor"
                                  , Subtitled "Stars" "Don't worry it's only 5 lines of code."
                                  , bulleted "Star System" [
@@ -170,10 +169,10 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                                           , "Stars are gradually removed"
                                                           , "Stars only exist at night time"
                                                           ]
-                                 , Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
+                                 , displayFloat timeCycle 100
                                  <> ShowCode "timeCycle"
-                                 , Raw (((timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
-                                  &&& ((hold (0,0) (periodically 0.2 >>> randomStar)) >>^ show >>^ drawCode' (leftMargin, 200))) >>^ (\(a,b) w -> a w >> b w))
+                                 , displayFloat timeCycle 100
+                                 <> Raw ((hold (0,0) (periodically 0.2 >>> randomStar)) >>^ show >>^ drawCode' 200)
                                  <> ShowCode "timeCycle &&& randomStar"
                                  , titledCode' "Star System" [
                                                         "stars :: Wire e m (Time, Pos) [Pos]"
@@ -186,7 +185,7 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                                       ,"          | otherwise = []"
                                                              ]
                                  , Raw ((timeCycle &&& randomStar) >>> stars >>^ (\stars window -> do
-                                       drawCode' (leftMargin, 200) (show (length stars)) window
+                                       drawCode' 200 (show (length stars)) window
                                        M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / fromIntegral 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
                                        ))
                                  <> displayFloat timeCycle 100 --Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
@@ -224,18 +223,22 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
 
         show3  = show . map3 floatString
         fractionToNight hour = abs (hour - 12) / 12
+        fractionToNightW = timeCycle >>^ fractionToNight
         skyColor nightApproach = C.dayColor + (C.nightColor - C.dayColor) ^* nightApproach
-        drawCode' pos = \text window -> drawString window (255,255,255) text codeFont pos
-        displayFloat f y = Raw (f >>^ floatString >>^ drawCode' (leftMargin, y))
+        drawCode' y = \text window -> drawString window (255,255,255) text codeFont (leftMargin, y)
+        displayFloat f y = Raw (f >>^ floatString >>^ drawCode' y)
         skyBaseSlide = Raw (pure (\window -> do
                paintRect window C.dayColor $ Just (SDL.Rect 0 100 400 500) 
                drawString window (r3 C.nightColor) (show C.dayColor) codeFont (leftMargin, 150)
                paintRect window C.nightColor $ Just (SDL.Rect 400 100 400 500) 
                drawString window (r3 C.dayColor) (show C.nightColor) codeFont (leftMargin + 400, 150)
                ))
-         <> Title "Background"
+           <> Title "Background"
 
-        movingObjects = tagAll "△" [ Subtitled "Objects" "Things that move"
+        movingObjects = let initialObject = object_ (flip const) (ObjectState (leftMargin, 450) (0,0) :: ObjectState (Double, Double)) 
+                            moveAndShow accel = Raw $ accel >>> initialObject >>^ renderObject codeFont
+                            in
+          tagAll "△" [ Subtitled "Objects" "Things that move"
                                    , titledCode' "Object Type" [ "Wire e m (ObjectDiff a) (ObjectState a)"
                                                                , " "
                                                                , "ObjectState { objPosition :: a"
@@ -246,25 +249,21 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                                                , "                  | Velocity a"
                                                                ]
                                    
-                                   , let x = 1
-                                      in Raw (pure (Accelerate 0, ())
-                                       >>> object_ (flip const) (ObjectState (leftMargin, 450) (0,0) :: ObjectState (Double, Double)) 
-                                       >>^ renderObject True codeFont)
+                                   , let accel = pure (Accelerate 0, ())
+                                      in moveAndShow accel
                                        <> ShowCode "box = object_ (ObjectState (50,450) (0,0))"
                                        <> Title "An Object"
                                    , let accel = pure (Accelerate (5,-5), ())
-                                      in Raw (accel
-                                       >>> object_ (flip const) (ObjectState (leftMargin, 450) (0,0) :: ObjectState (Double, Double)) 
-                                       >>^ renderObject True codeFont)
+                                      in moveAndShow accel
                                        <> titledCode' "Moving An Object" [ " "
                                                                          , " "
                                                                          , "accel = pure (Accelerate (5, -5), ())"
                                                                          ]
                                        <> ShowCode "accel >>> box"
-                                   , let accel = (for 2 >>> pure (Accelerate 0, ())) --> (forI 1 >>> (pure (Accelerate (7500, -7500), ()))) --> (pure (Accelerate (0, 50), ()))
-                                      in Raw (accel
-                                       >>> object_ (flip const) (ObjectState (leftMargin, 450) (0,0) :: ObjectState (Double, Double)) 
-                                       >>^ renderObject True codeFont)
+                                   , let accel = (for 2 >>> pure (Accelerate 0, ())) 
+                                             --> (forI 1 >>> (pure (Accelerate (7500, -7500), ()))) 
+                                             --> (pure (Accelerate (0, 50), ()))
+                                      in moveAndShow accel
                                        <> titledCode' "Moving An Object" [ " "
                                                                          , " "
                                                                          , "accel = "
@@ -275,9 +274,7 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                                                          ]
                                        <> ShowCode "accel >>> box"
                                    , let accel = thrust joystick >>^ (,())
-                                      in Raw (accel
-                                       >>> object_ (flip const) (ObjectState (leftMargin, 450) (0,0) :: ObjectState (Double, Double)) 
-                                       >>^ renderObject True codeFont)
+                                      in moveAndShow accel
                                        <> titledCode' "Moving An Object" [ " "
                                                                          , " "
                                                                          ,"thrust joystick = do"
@@ -323,9 +320,8 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
 floatString :: Double -> String
 floatString t = printf "%.2f" t
 
-titledCode title code codeFont = 
-    Title title
- <> Raw (arr (\t window -> drawLines codeFont (255,255,255) (leftMargin, 150) window code))
+titledCode title code codeFont = Title title
+                              <> Raw (arr (\t window -> drawLines codeFont (255,255,255) (leftMargin, 150) window code))
 
 drawLines font color (x,y) window lines = do
     forEachI lines $ \(line, position) -> do
@@ -354,8 +350,8 @@ randomStar = liftA2 (,) (pure (0,800) >>> noiseRM) (pure (0,600) >>> noiseRM)
 
 timeCycle = timeFrom 17 >>^ (\t -> t `mod'` 24)
 
-renderObject t font s@(ObjectState (x, y) vel) window = do
-    M.when t $ drawString window (255,255,255) (showObj s) font (leftMargin, 150)
+renderObject font s@(ObjectState (x, y) _) window = do
+    drawString window (255,255,255) (showObj s) font (leftMargin, 150)
     paintRect window (255,255,255) $ Just (SDL.Rect (round x) (round y) 50 50) where showObj (ObjectState pos vel) = "Pos: " ++ floatString2 pos ++ ", Vel: " ++ floatString2 vel 
 
 floatString2 = show . over both floatString
