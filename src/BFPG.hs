@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module BFPG where
 
+import Utils
 import Control.Lens hiding (perform)
 import Graphics.UI.SDL.Joystick as SDLJ
 import Data.VectorSpace hiding (Sum, getSum)
@@ -140,10 +141,10 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                  <> displayFloat fractionToNightW 200
                                  <> ShowCode "fractionToNight hour = abs (hour - 12) / 12"
                                  , displayFloat timeCycle 100 
-                                 <>  Raw (timeCycle >>^ fractionToNight >>^ floatString >>^ ("fractionToNight (nf) = " ++) >>^ drawCode' 170)
+                                 <>  Raw (fractionToNightW >>^ floatString >>^ ("fractionToNight (nf) = " ++) >>^ drawCode' 170)
                                  <>  Raw (pure ("start = " ++ show C.dayColor) >>^ drawCode' 240)
                                  <>  Raw (pure ("end = " ++ show C.nightColor) >>^ drawCode' 310)
-                                 <> Raw (timeCycle >>^ fractionToNight >>^ skyColor >>^ show3 >>^ ("skyColor = " ++) >>^ drawCode' 380)
+                                 <> Raw (fractionToNightW >>^ skyColor >>^ show3 >>^ ("skyColor = " ++) >>^ drawCode' 380)
                                  <> ShowCode "skyColor nf = start + (end - start) ^* nf"
                                  , titledCode' "Background Components" ["timeCycle = timeFrom 17 >>^ (`mod` 24)"
                                                    ," "
@@ -156,10 +157,10 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                                    ]
                                  , skyBaseSlide <> Title "Background"
                                  , Title "Background"
-                                 <> Raw (timeCycle >>^ fractionToNight >>^ skyColor >>> arr (\c window ->
+                                 <> Raw (fractionToNightW >>^ skyColor >>> arr (\c window ->
                                         paintRect window c $ Just (SDL.Rect 0 100 800 500)))
                                  <> displayFloat timeCycle 100
-                                 <> Raw (timeCycle >>^ fractionToNight >>^ floatString >>^ ("fractionToNight (nf) = " ++) >>^ drawCode' 170)
+                                 <> Raw (fractionToNightW >>^ floatString >>^ ("fractionToNight (nf) = " ++) >>^ drawCode' 170)
                                  <> Raw (pure ("start = " ++ show C.dayColor) >>^ drawCode' 240)
                                  <> Raw (pure ("end = " ++ show C.nightColor) >>^ drawCode' 310)
                                  <> ShowCode "timeCycle >>^ fractionToNight >>^ skyColor"
@@ -188,7 +189,7 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                        drawCode' 200 (show (length stars)) window
                                        M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / fromIntegral 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
                                        ))
-                                 <> displayFloat timeCycle 100 --Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
+                                 <> displayFloat timeCycle 100
                                  <> ShowCode "(tCycle &&& randomStar) >>> stars >>^ length"
                                  , Title "Full Sky"
                                  <>  Raw (timeCycle >>^ fractionToNight >>^ skyColor >>> arr (\c window ->
@@ -321,7 +322,7 @@ floatString :: Double -> String
 floatString t = printf "%.2f" t
 
 titledCode title code codeFont = Title title
-                              <> Raw (arr (\t window -> drawLines codeFont (255,255,255) (leftMargin, 150) window code))
+                              <> Raw (pure (\window -> drawLines codeFont (255,255,255) (leftMargin, 150) window code))
 
 drawLines font color (x,y) window lines = do
     forEachI lines $ \(line, position) -> do
@@ -329,15 +330,9 @@ drawLines font color (x,y) window lines = do
       (width, height) <- SDLF.textSize font line' 
       drawString window color line' font (x, y + (position * height))
 
-forEachI xs f = M.forM_ (zip xs [0..]) f
-
 bulleted t s = Bulleted t $ fmap (" • " ++) s
 
 tagAll symbol = fmap (<> Tagged symbol)
-
-r3 = map3 round
-
-map3 f (a,b,c) = (f a, f b, f c)
 
 stars = accum modifier []
   where modifier oldStars (h, newStar) 

@@ -7,26 +7,23 @@
 
 module PresenterMain where
 
+import Utils
 import qualified Control.Concurrent
 import Graphics.UI.SDL.Joystick as SDLJ
 import Data.Maybe (listToMaybe, mapMaybe)
 import qualified Control.Monad as M
-import Debug.Trace
 import Data.Monoid
 import Data.Foldable (elem)
 import Prelude hiding ((.), id, mapM_, elem)
-import Control.Wire hiding (empty)
-import qualified Data.Set as Set (insert, delete)
-import Data.Set (Set)
+import Control.Wire hiding (empty, window)
 import Graphics.UI.SDL as SDL
-import Graphics.UI.SDL.Image as SDLI
+-- import Graphics.UI.SDL.Image as SDLI
 import Graphics.UI.SDL.TTF as SDLF
 import SlideTypes
 import SDLStuff
 import BFPG
 import DataStructures
 import System.Directory
-import Control.Exception (catch)
 
 data Theme = Theme { 
            _titleFont :: Font, 
@@ -56,16 +53,13 @@ withSlider f = SDL.withInit [SDL.InitEverything, SDL.InitJoystick] $ do
                  <*> macFont "SourceCodePro-Medium.ttf" 28 
                  <*> macFont "Apple Symbols.ttf" 72 
                  <*> pure "#252525"
-  -- sheep <- SDLI.load "sheep.png"
-  f theme window_ -- $ Slider window_ font sheep
+  f theme window_
   SDLF.quit
 
 zipperNavigator :: Monoid e => Zipper a -> Wire e m (Maybe Nav) a
-zipperNavigator z = mkState z $ \t (nav, state) -> case nav of
+zipperNavigator z = mkState z $ \_ (nav, state) -> case nav of
                                                       Just n -> let v = navigate n state in (Right (zipperFocus v), v)
                                                       Nothing -> (Left mempty, state)
-
-help = M.join traceShow
 
 slideWire as@(a, _) = switch (allEvents >>> eventsToNav >>> zipperNavigator (mkZipper as)) a
   where keysToNav = pure (Just GoRight) >>> periodically 3 <|> pure Nothing
@@ -122,18 +116,6 @@ allEvents = arr (\_ -> poll []) >>> perform
               SDL.Quit -> error "done"
               v -> poll (v:ks)
 
-keyReleases :: [SDL.SDLKey] -> IO [SDL.SDLKey]
-keyReleases ks = do
-  ev <- SDL.pollEvent
-  M.unless (ev == SDL.NoEvent) $ print ev
-  case ev of
-    SDL.NoEvent -> return ks
-    SDL.KeyDown k | SDL.symKey k == SDL.SDLK_q && elem SDL.KeyModLeftMeta (SDL.symModifiers k) -> error "Done"
-    SDL.KeyUp k -> keyReleases (SDL.symKey k:ks) -- (Set.insert (SDL.symKey k) keysDown)
-    SDL.JoyButtonUp a b -> keyReleases ks
-    SDL.Quit -> error "Done"
-    _ -> keyReleases ks
-
 renderSlide :: Monad m => SDL.Surface -> Theme -> Slide e m a -> Wire e m a (Surface -> IO ())
 renderSlide sheep (Theme {..}) slide = fmap (\f window -> layFoundation window >> f window >> SDL.flip window) $ xxx slide
   where xxx slide = case slide of 
@@ -155,7 +137,7 @@ renderSlide sheep (Theme {..}) slide = fmap (\f window -> layFoundation window >
                       Bulleted main points -> pure $ \window -> do
                         text <- SDLF.renderUTF8Blended _titleFont main (SDL.Color 255 255 255)
                         SDL.blitSurface text Nothing window $ Just $ SDL.Rect 50 50 100 100
-                        M.forM_ (zip points [0..]) $ \(text, index) -> do
+                        forEachI points $ \(text, index) -> do
                           text2 <- SDLF.renderUTF8Blended _subtitleFont text (SDL.Color 255 255 255)
                           SDL.blitSurface text2 Nothing window $ Just $ SDL.Rect 50 (150 + index * 70) 100 100
                         return ()
@@ -171,7 +153,7 @@ renderSlide sheep (Theme {..}) slide = fmap (\f window -> layFoundation window >
                         SDL.blitSurface text Nothing window $ Just $ SDL.Rect 720 30 100 100
                         return ()
                       Raw f -> f
-                      Blank -> pure $ \window -> return ()
+                      Blank -> pure (pure (pure ()))
                       GenText w -> w >>^ (\t window -> do
                                                 SDL.blitSurface sheep Nothing window $ Just $ SDL.Rect 0 0 100 100
                                                 text <- SDLF.renderTextBlended _titleFont t (SDL.Color 255 255 255)
