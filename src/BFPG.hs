@@ -19,18 +19,6 @@ import Text.Printf (printf)
 import qualified Control.Monad as M
 import qualified Config as C
 
-thrust (Just joystick) = pure f >>> perform
-  where f = do
-            v <- SDLJ.getButton joystick 11
-            return . Accelerate $ if v
-              then (0 ::Double, -80 ::Double) + gravity
-              else (0, 0) + gravity
-        gravity = (0,50)
-
-thrust Nothing = pure (Accelerate 0)
-
-leftMargin = 50
-
 bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingSky ++ movingObjects ++ problems ++ wrapup
   where intro = [
                  Subtitled "Using Netwire for Games in Haskell" "Nick Partridge - @nkpart - nkpart@gmail.com"
@@ -350,3 +338,16 @@ renderObject font s@(ObjectState (x, y) _) window = do
     paintRect window (255,255,255) $ Just (SDL.Rect (round x) (round y) 50 50) where showObj (ObjectState pos vel) = "Pos: " ++ floatString2 pos ++ ", Vel: " ++ floatString2 vel 
 
 floatString2 = show . over both floatString
+
+thrust (Just joystick) = pure f >>> perform
+  where f = do
+            v <- SDLJ.getButton joystick 11
+            return . Accelerate $ if v
+              then (0 ::Double, -80 ::Double) + gravity
+              else (0, 0) + gravity
+        gravity = (0,50)
+
+thrust Nothing = pure (Accelerate 0)
+
+leftMargin = 50
+
