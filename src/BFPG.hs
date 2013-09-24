@@ -18,14 +18,14 @@ import qualified Config as C
 
 leftMargin = 50
 
-bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ buildingSky ++ movingObjects ++ problems ++ wrapup
+bfpg codeFont tagFont = intro ++ gameLoops ++ introToWires ++ buildingSky ++ movingObjects ++ problems ++ wrapup
   where intro = [
-                 Subtitled "Programming Games in Haskell" "Nick Partridge - @nkpart - nkpart@gmail.com"
+                 Subtitled "Using Netwire for Games in Haskell" "Nick Partridge - @nkpart - nkpart@gmail.com"
                , bulleted "Bio" [ "Not a games programmer"
                                 , "Written exactly 2 apps with this technology"
                                 , "Have no idea what FRP is"
                                 ]
-               , bulleted "The Technology" [ "Haskell"
+               , bulleted "The Technology" [ "Making Games with Haskell"
                                            , "SDL - inputs. drawing rectangles, images and text"
                                            , "Netwire - FRP(*). Values/functions that change over time"
                                            ]
@@ -73,7 +73,7 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                                                                    "play = loop initialGameState"
                                                                  , "loop current = do"
                                                                  , "  events <- pollEvents"
-                                                                 , "  let next = updateGameState current events"
+                                                                 , "→ let next = updateGameState current events"
                                                                  , "  renderGameState next"
                                                                  , "  loop next"
                                                                  ]
@@ -87,7 +87,8 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                                                               ]
                                ]
 
-        introToWires = tagAll "→" [ bulleted "Intro to Wires" [ "netwire", "Control.Wire" ]
+        introToWires = tagAll "→" [ bulleted "Intro to Wires" [ "netwire package", "Control.Wire module" ]
+                                  <> ShowCode "Wire e m a b"
                                   , bulleted "Wires Produce Values" ["a - input", "b - output"]
                                   <> ShowCode "a -> b"
                                   , bulleted "Values over Time" ["Time - delta", "a - input", "b - output"]
@@ -98,6 +99,16 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                                   <> ShowCode "Time -> a -> (Either e b, Wire e a b)"
                                   , bulleted "May have effects" ["Time - delta", "a - input", "b - output", "e - inhibits with", "m - effect of 'stepping' the wire"]
                                   <> ShowCode "Time -> a -> m (Either e b, Wire e m a b)"
+                                  , titledCode' "Netwire Game Loop" [
+                                                                   "play = loop gameWire clockSession"
+                                                                 , "loop current session = do"
+                                                                 , "  events <- pollEvents"
+                                                                 , "  (next, nextWire, nextSession)"
+                                                                 , "      <- stepSession current session events"
+                                                                 , "  renderGameState next"
+                                                                 , "  loop nextWire nextSession"
+                                                                 ]
+                                  <> ShowCode "gameWire :: Wire e IO Events GameState"
                                   ]
 
         buildingSky = tagAll "★" [ Title "Building Sky"
@@ -108,7 +119,7 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                                  , Raw (fastTime >>> arr (\t window -> drawString window (255,255,255) (floatString t) codeFont (leftMargin, 100)))
                                  <> ShowCode "time :: Wire e m a Time"
                                  , Raw ((fastTime >>> derivative_ const 0) >>> arr (\t window -> drawString window (255,255,255) (floatString t) codeFont (leftMargin, 100)))
-                                 <> ShowCode "time >>> derivative_ const 0 :: Wire e m a Time"
+                                 <> ShowCode "time >>> derivative :: Wire e m a Time"
                                  , Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
                                  <> ShowCode "timeFrom 17 >>^ (\\t -> t `mod'` 24)"
                                  , Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
@@ -117,8 +128,10 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                                  <>  Raw (timeCycle >>^ fractionToNight >>^ floatString >>^ drawCode' (leftMargin, 200))
                                  <> ShowCode "fractionToNight hour = abs (hour - 12) / 12"
                                  , Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
-                                 <>  Raw (timeCycle >>^ fractionToNight >>^ floatString >>^ drawCode' (leftMargin, 200))
-                                 <> Raw (timeCycle >>^ fractionToNight >>^ skyColor >>^ show3 >>^ drawCode' (leftMargin, 300)) --drawColor' (SDL.Rect 100 0 100 100))
+                                 <>  Raw (timeCycle >>^ fractionToNight >>^ floatString >>^ ("fractionToNight (nf) = " ++) >>^ drawCode' (leftMargin, 170))
+                                 <>  Raw (pure ("start = " ++ show C.dayColor) >>^ drawCode' (leftMargin, 240))
+                                 <>  Raw (pure ("end = " ++ show C.nightColor) >>^ drawCode' (leftMargin, 310))
+                                 <> Raw (timeCycle >>^ fractionToNight >>^ skyColor >>^ show3 >>^ ("skyColor = " ++) >>^ drawCode' (leftMargin, 380))
                                  <> ShowCode "skyColor nf = start + (end - start) ^* nf"
                                  , titledCode' "Background Components" ["timeCycle = timeFrom 17 >>^ (`mod` 24)"
                                                    ," "
@@ -145,10 +158,10 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                                                           ]
                                  , Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
                                  , Raw (((timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
-                                  &&& (randomPosition >>^ show >>^ drawCode' (leftMargin, 200))) >>^ (\(a,b) w -> a w >> b w))
-                                 <> ShowCode "timeCycle &&& randomPosition"
+                                  &&& ((hold (0,0) (periodically 0.2 >>> randomStar)) >>^ show >>^ drawCode' (leftMargin, 200))) >>^ (\(a,b) w -> a w >> b w))
+                                 <> ShowCode "timeCycle &&& randomStar"
                                  , titledCode' "Star System" [
-                                                      "starSystem = accum modifier []"
+                                                      "stars = accum modifier []"
                                                       ,"  where modifier oldStars (h, newStar) "
                                                       ,"          | h > 17.5 = newStar:oldStars"
                                                       ,"          | h < 6 = if null oldStars"
@@ -156,18 +169,30 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                                                       ,"                      else tail oldStars"
                                                       ,"          | otherwise = []"
                                                              ]
-                                 , Raw ((timeCycle &&& randomPosition) >>> starSystem >>^ (\stars window -> do
+                                 , Raw ((timeCycle &&& randomStar) >>> stars >>^ (\stars window -> do
                                        drawCode' (leftMargin, 200) (show (length stars)) window
                                        M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / fromIntegral 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
                                        ))
                                  <> Raw (timeCycle >>^ floatString >>^ drawCode' (leftMargin, 100))
-                                 <> ShowCode "(timeCycle &&& randomPosition) >>> starSystem >>^ length"
+                                 <> ShowCode "(timeCycle &&& randomStar) >>> stars >>^ length"
                                  , Title "Full Sky"
                                  <>  Raw (timeCycle >>^ fractionToNight >>^ skyColor >>> arr (\c window ->
                                         paintRect window c $ Just (SDL.Rect 0 100 800 500)))
-                                 <>  Raw ((timeCycle &&& randomPosition) >>> starSystem >>^ (\stars window -> do
+                                 <>  Raw ((timeCycle &&& randomStar) >>> stars >>^ (\stars window -> do
                                        M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / fromIntegral 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
                                        ))
+                                 , 
+                                   Raw (timeCycle >>^ fractionToNight >>^ skyColor >>> arr (\c window ->
+                                        paintRect window c $ Just (SDL.Rect 0 100 800 500)))
+                                 <>  Raw ((timeCycle &&& randomStar) >>> stars >>^ (\stars window -> do
+                                       M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / fromIntegral 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
+                                       ))
+                                 <> bulleted "Full Sky" [ "Small functions"
+                                                        , "No shared state"
+                                                        , "No effects"
+                                                        , "Compositionality"
+                                                        , "Pretty RAD"
+                                                        ]
                                ]
 
         show3 (a,b,c) = "(" ++ floatString a <> ", " <> floatString b <> ", " <> floatString c <> ")"
@@ -183,14 +208,49 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                ))
          <> Title "Background"
 
-        movingObjects = tagAll "△" [ Title "Moving Objects"
+        movingObjects = tagAll "△" [ bulleted "Objects" [ "Physics!"
+                                                               , "Integrals/Differentiation"
+                                                               , "Movement equations"
+                                                               ]
+                                   , titledCode' "Object Type" [ "Wire e m (ObjectDiff a) (ObjectState a)"
+                                                               , " "
+                                                               , "ObjectState { objPosition :: a"
+                                                               , "            , objVelocity :: a}"
+                                                               , " "
+                                                               , "data ObjectDiff a = Accelerate a"
+                                                               , "                  | Position a"
+                                                               , "                  | Velocity a"
+                                                               ]
+                                   
+                                   , let x = 1
+                                      in Raw (pure (Accelerate 0, ())
+                                       >>> object_ (flip const) (ObjectState (leftMargin, 450) (0,0) :: ObjectState (Double, Double)) 
+                                       >>^ renderObject True codeFont)
+                                       <> ShowCode "box = object_ (ObjectState (50,450) (0,0))"
+                                       <> Title "An Object"
+                                   , let accel = (for 2 >>> pure (Accelerate 0, ())) --> (forI 1 >>> (pure (Accelerate (7500, -7500), ()))) --> (pure (Accelerate (0, 50), ()))
+                                      in Raw (accel
+                                       >>> object_ (flip const) (ObjectState (leftMargin, 450) (0,0) :: ObjectState (Double, Double)) 
+                                       >>^ renderObject True codeFont)
+                                       <> titledCode' "Moving An Object" [ " "
+                                                                         , " "
+                                                                         , "accel = "
+                                                                         , "     (for 5 >>> pure (Accelerate 0, ()))"
+                                                                         , " --> (forI 1"
+                                                                         , "      >>> pure (Acclerate (7500, -7500), ()))"
+                                                                         , " --> (pure (Acclerate (0, 50), ()))"
+                                                                         ]
+                                       <> ShowCode "accel >>> box"
                                    ]
 
-        problems = tagAll "☹" [ Title "Problems/Gotchas"
-                              , Title "This" <> GenText (fmap (:[]) $ hold ' ' (periodically 0.5 >>> cycleW "bfpg"))
-                                <> ShowCode "periodically 0.5 >>> cycleW \"bfpg\""
-                              , Title "That" <> GenText (fmap (:[]) $ hold ' ' (cycleW "bfpg" >>> periodically 0.5)) -- example of preceding operator vs proceding
-                                <> ShowCode "cycleW \"bfpg\" >>> periodically 0.5"
+        problems = tagAll "☹" [ bulleted "Problems/Gotchas" [ "Composition order"
+                                                            , "Wire features"
+                                                            , "Library Installation - (not Netwire)"
+                                                            ]
+                              , Title "This?" <> GenText (fmap (:[]) $ hold ' ' (periodically 0.5 >>> cycleW "BFPG"))
+                                <> ShowCode "periodically 0.5 >>> cycleW \"BFPG\""
+                              , Title "or this?" <> GenText (fmap (:[]) $ hold ' ' (cycleW "BFPG" >>> periodically 0.5)) -- example of preceding operator vs proceding
+                                <> ShowCode "cycleW \"BFPG\" >>> periodically 0.5"
                               , bulleted "Too many features" [
                                                                "Errors - difficult to track where they are introduced"
                                                              , "       - when you miss an inhibition, every then fails"
@@ -198,11 +258,21 @@ bfpg codeFont tagFont = buildingSky ++ intro ++ gameLoops ++ introToWires ++ bui
                                                              , "No Input = polymorphic input"
                                                              , "Effects - could type everything with `m = Identity`"
                                                              ]
-                                
                                 <> ShowCode "Time -> a -> m (Either e b, Wire e m a b)"
+                              , bulleted "Library Installation" [ "SDL + Mac OS X Mavericks + Xcode 5 = D:"
+                                                                , "So many yaks"
+                                                                , ""
+                                                                ]
                               ]
-
-        wrapup = []
+        wrapup = [ Title "Wrapping Up"
+                 , bulleted "Other Resources" [ "Ocharles' Tutorials"
+                                        , "Netwire Hackage Docs"
+                                        , "Any SDL tutorial" 
+                                        ]
+                 , bulleted "Ideas for the Future!" [ "Fork and clean up my code"
+                                                    , "Hack night"
+                                                    ]
+                 ]
        -- -- TODO: hold "" vs pure ""
        -- , Raw (fastTimeFrom (17 / timeScale) >>^ (\t -> t `mod'` 24) >>> arr (\t window -> drawString window (255,255,255) (floatString t) codeFont (50, 100)))
        --   <> ShowCode "timeFrom 17 >>^ (\\t -> t `mod'` 24))"
@@ -260,8 +330,7 @@ drawLines font color (x,y) window lines = do
 
 forEachI xs f = M.forM_ (zip xs [0..]) f
 
-
-timeScale = 3.0
+timeScale = 1.0
 
 bulleted t s = Bulleted t $ fmap (" • " ++) s
 
@@ -269,20 +338,19 @@ tagAll symbol = fmap (<> Tagged symbol)
 
 r3 (a,b,c) = (round a, round b, round c)
 
-starsW :: (Monoid e, Monad m, MonadRandom m) => Wire e m a [(Int, Int)]
-starsW = (timeCycle &&& randomPosition) >>> accum changeStars []
-  where changeStars oldStars (h, newStar) | h > 17.5 = newStar:oldStars
-                                          | h < 6 = if null oldStars then oldStars else tail oldStars
-                                          | otherwise = []
-
-starSystem = accum modifier []
+stars = accum modifier []
   where modifier oldStars (h, newStar) 
           | h > 17.5 = newStar:oldStars
           | h < 6 = if null oldStars then oldStars else tail oldStars
           | otherwise = []
 
-
-randomPosition :: MonadRandom m => Wire e m a (Int, Int)
-randomPosition = liftA2 (,) (pure (0,800) >>> noiseRM) (pure (0,600) >>> noiseRM)
+randomStar :: MonadRandom m => Wire e m a (Int, Int)
+randomStar = liftA2 (,) (pure (0,800) >>> noiseRM) (pure (0,600) >>> noiseRM)
 
 timeCycle = fastTimeFrom 17 >>^ (\t -> t `mod'` 24)
+
+renderObject t font s@(ObjectState (x, y) vel) window = do
+    M.when t $ drawString window (255,255,255) (showObj s) font (leftMargin, 150)
+    paintRect window (255,255,255) $ Just (SDL.Rect (round x) (round y) 50 50) where showObj (ObjectState pos vel) = "Pos: " ++ floatString2 pos ++ ", Vel: " ++ floatString2 vel 
+
+floatString2 (a,b) = "(" ++ floatString a ++ ", " ++ floatString b ++ ")"

@@ -2,14 +2,14 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
--- {-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE Rank2Types #-}
 
 module PresenterMain where
 
+import qualified Control.Concurrent
 import Graphics.UI.SDL.Joystick as SDLJ
-import Data.Maybe (listToMaybe)
+import Data.Maybe (listToMaybe, mapMaybe)
 import qualified Control.Monad as M
 import Debug.Trace
 import Data.Monoid
@@ -48,7 +48,7 @@ macFont f s = do
 withSlider :: (Theme -> Surface -> IO a) -> IO ()
 withSlider f = SDL.withInit [SDL.InitEverything, SDL.InitJoystick] $ do
   SDLF.init
-  -- SDLJ.open 0
+  SDLJ.open 0
   window_ <- SDL.setVideoMode 800 600 32 [SDL.SWSurface]
   theme <- Theme <$> macFont "SofiaProLight.ttf" 40 
                  <*> macFont "SofiaProLight.ttf" 28 
@@ -66,7 +66,7 @@ zipperNavigator z = mkState z $ \t (nav, state) -> case nav of
 
 help = M.join traceShow
 
-slideWire as@(a, _) = switch (keyReleasesW >>> keysToNav' >>> zipperNavigator (mkZipper as)) a
+slideWire as@(a, _) = switch (allEvents >>> eventsToNav >>> zipperNavigator (mkZipper as)) a
   where keysToNav = pure (Just GoRight) >>> periodically 3 <|> pure Nothing
         keysToNav' = arr (listToMaybe . concatMap (\v -> case v of
                                               SDL.SDLK_h -> [GoLeft]
@@ -76,25 +76,48 @@ slideWire as@(a, _) = switch (keyReleasesW >>> keysToNav' >>> zipperNavigator (m
                                               _ -> []
                                               ))
 
+goalDtime = 1 / 30.0
+
 main :: IO ()
 main = withSlider $ \theme window -> do
-    -- print =<< SDLJ.name 0
+    print =<< SDLJ.name 0
     go theme window $ bfpg (_codeFont theme) (_tagFont theme)
     return ()
   where
-    go theme window slides = go_ clockSession (slideWire . unsafeNEL . cycle . fmap showSlide $ slides)
+    go theme window slides = go_ clockSession ((slideWire . unsafeNEL . cycle . fmap showSlide $ slides) &&& dtime )
       where go_ s w = do
-                -- SDLJ.update
-                -- joyIsOpen <- SDLJ.opened 0
-                -- M.unless joyIsOpen (M.void $ SDLJ.open 0)
-                (f, nextWire, session) <- stepSession_ w s Nothing
+                SDLJ.update
+                joyIsOpen <- SDLJ.opened 0
+                M.unless joyIsOpen (M.void $ SDLJ.open 0)
+                ((f, dt), nextWire, session) <- stepSession_ w s Nothing
                 f window
+                M.when (dt < goalDtime) $ do
+                  Control.Concurrent.threadDelay (round ((goalDtime - dt) / 1000))
                 go_ session nextWire
             showSlide = renderSlide window theme
 
-keyReleasesW = mkFixM $ \t a -> do
-  ks <- keyReleases []
-  return $ Right ks
+eventsToNav = arr $ listToMaybe . mapMaybe f
+  where f (SDL.KeyUp k) = checkKey $ SDL.symKey k
+        f (SDL.JoyButtonUp k v) = checkJoy k v
+        f _ = Nothing
+        checkKey k = case k of
+            SDL.SDLK_h -> Just GoLeft
+            SDL.SDLK_LEFT -> Just GoLeft
+            SDL.SDLK_l -> Just GoRight
+            SDL.SDLK_RIGHT -> Just GoRight
+            _ -> Nothing
+        checkJoy _ v | v == 9 || v == 14 = Just GoRight 
+        checkJoy _ v | v == 8 || v == 13 = Just GoLeft
+        checkJoy _ _ = Nothing
+
+allEvents = arr (\_ -> poll []) >>> perform
+    where poll ks = do
+            ev <- SDL.pollEvent
+            case ev of
+              SDL.NoEvent -> return ks
+              SDL.KeyDown k | SDL.symKey k == SDL.SDLK_q && elem SDL.KeyModLeftMeta (SDL.symModifiers k) -> error "Done"
+              SDL.Quit -> error "done"
+              v -> poll (v:ks)
 
 keyReleases :: [SDL.SDLKey] -> IO [SDL.SDLKey]
 keyReleases ks = do
