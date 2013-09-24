@@ -129,9 +129,9 @@ renderSlide sheep (Theme {..}) slide = fmap (\f window -> layFoundation window >
                         SDL.blitSurface text Nothing window $ Just $ SDL.Rect 50 50 100 100
                         return ()
                       Subtitled main lesser -> pure $ \window -> do
-                        text <- SDLF.renderTextBlended _titleFont main (SDL.Color 255 255 255)
+                        text <- SDLF.renderUTF8Blended _titleFont main (SDL.Color 255 255 255)
                         SDL.blitSurface text Nothing window $ Just $ SDL.Rect 50 50 100 100
-                        text2 <- SDLF.renderTextBlended _subtitleFont lesser (SDL.Color 255 255 255)
+                        text2 <- SDLF.renderUTF8Blended _subtitleFont lesser (SDL.Color 255 255 255)
                         SDL.blitSurface text2 Nothing window $ Just $ SDL.Rect 50 150 100 100
                         return ()
                       Bulleted main points -> pure $ \window -> do
