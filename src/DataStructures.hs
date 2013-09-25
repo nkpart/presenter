@@ -5,6 +5,7 @@ data Nav = GoLeft | GoRight deriving Show
 type Zipper a = ([a], a, [a])
 
 mkZipper (a, as) = ([], a, as)
+
 zipperFocus (_, f, _) = f
 
 -- newtype Scene = Scene (forall e m. Wire e m () (SDL.Surface -> IO ()))

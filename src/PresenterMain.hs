@@ -63,14 +63,6 @@ zipperNavigator z = mkState z $ \_ (nav, state) -> case nav of
                                                       Nothing -> (Left mempty, state)
 
 slideWire as@(a, _) = switch (allEvents >>> eventsToNav >>> zipperNavigator (mkZipper as)) a
-  where keysToNav = pure (Just GoRight) >>> periodically 3 <|> pure Nothing
-        keysToNav' = arr (listToMaybe . concatMap (\v -> case v of
-                                              SDL.SDLK_h -> [GoLeft]
-                                              SDL.SDLK_LEFT -> [GoLeft]
-                                              SDL.SDLK_l -> [GoRight]
-                                              SDL.SDLK_RIGHT -> [GoRight]
-                                              _ -> []
-                                              ))
 
 goalDtime = 1 / 30.0
 
@@ -88,7 +80,7 @@ main = withSlider $ \theme window -> do
                 -- M.unless joyIsOpen (M.void $ SDLJ.open 0)
                 ((f, dt), nextWire, session) <- stepSession_ w s Nothing
                 f window
-                M.when (dt < goalDtime) $ do
+                M.when (dt < goalDtime) $ 
                   Control.Concurrent.threadDelay (round ((goalDtime - dt) / 1000))
                 go_ session nextWire
             showSlide = renderSlide window theme

@@ -40,7 +40,7 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                    , "Problems/Gotchas"
                                    ]
                 <> Raw (pure $ \window ->
-                       forEachI "⟳→★△☹" $ \(t,idx) -> drawString window (255,255,255) (t:[]) tagFont (500, 130 + (idx * 70)))
+                       forEachI "⟳→★△☹" $ \(t,idx) -> drawString window (255,255,255) [t] tagFont (500, 130 + (idx * 70)))
                ]
 
         titledCode' a b = titledCode a b codeFont
@@ -161,7 +161,7 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                  , displayFloat timeCycle 100
                                  <> ShowCode "timeCycle"
                                  , displayFloat timeCycle 100
-                                 <> Raw ((hold (0,0) (periodically 0.2 >>> randomStar)) >>^ show >>^ drawCode' 200)
+                                 <> Raw (hold (0,0) (periodically 0.2 >>> randomStar) >>^ show >>^ drawCode' 200)
                                  <> ShowCode "timeCycle &&& randomStar"
                                  , titledCode' "Star System" [
                                                         "stars :: Wire e m (Time, Pos) [Pos]"
@@ -175,15 +175,15 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                                              ]
                                  , Raw ((timeCycle &&& randomStar) >>> stars >>^ (\stars window -> do
                                        drawCode' 200 (show (length stars)) window
-                                       M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / fromIntegral 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
+                                       M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
                                        ))
                                  <> displayFloat timeCycle 100
                                  <> ShowCode "(tCycle &&& randomStar) >>> stars >>^ length"
                                  , Title "Full Sky"
                                  <>  Raw (timeCycle >>^ fractionToNight >>^ skyColor >>> arr (\c window ->
                                         paintRect window c $ Just (SDL.Rect 0 100 800 500)))
-                                 <>  Raw ((timeCycle &&& randomStar) >>> stars >>^ (\stars window -> do
-                                       M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / fromIntegral 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
+                                 <>  Raw ((timeCycle &&& randomStar) >>> stars >>^ (\stars window -> 
+                                       M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
                                        ))
                                  <> titledCode' "Full Sky" [ "data Sky = Sky Color [Pos]"
                                                            , "type Pos = (Int, Int)"
@@ -199,8 +199,8 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                  , 
                                    Raw (timeCycle >>^ fractionToNight >>^ skyColor >>> arr (\c window ->
                                         paintRect window c $ Just (SDL.Rect 0 100 800 500)))
-                                 <>  Raw ((timeCycle &&& randomStar) >>> stars >>^ (\stars window -> do
-                                       M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / fromIntegral 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
+                                 <>  Raw ((timeCycle &&& randomStar) >>> stars >>^ (\stars window -> 
+                                       M.forM_ stars $ \(x,y) -> paintRect window (lerp C.dayColor (255,255,255) ((fromIntegral (800 - y) / 800) ^ 2)) $ Just $ SDL.Rect x y 2 2
                                        ))
                                  <> bulleted "Full Sky" [ "Small functions"
                                                         , "No shared state"
@@ -214,7 +214,7 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
         fractionToNight hour = abs (hour - 12) / 12
         fractionToNightW = timeCycle >>^ fractionToNight
         skyColor nightApproach = C.dayColor + (C.nightColor - C.dayColor) ^* nightApproach
-        drawCode' y = \text window -> drawString window (255,255,255) text codeFont (leftMargin, y)
+        drawCode' y text window = drawString window (255,255,255) text codeFont (leftMargin, y)
         displayFloat f y = Raw (f >>^ floatString >>^ drawCode' y)
         skyBaseSlide = Raw (pure (\window -> do
                paintRect window C.dayColor $ Just (SDL.Rect 0 100 400 500) 
@@ -250,8 +250,8 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                                                                          ]
                                        <> ShowCode "accel >>> box"
                                    , let accel = (for 2 >>> pure (Accelerate 0, ())) 
-                                             --> (forI 1 >>> (pure (Accelerate (7500, -7500), ()))) 
-                                             --> (pure (Accelerate (0, 50), ()))
+                                             --> (forI 1 >>> pure (Accelerate (7500, -7500), ())) 
+                                             --> pure (Accelerate (0, 50), ())
                                       in moveAndShow accel
                                        <> titledCode' "Moving An Object" [ " "
                                                                          , " "
@@ -307,12 +307,12 @@ bfpg codeFont tagFont joystick = intro ++ gameLoops ++ introToWires ++ buildingS
                  ]
 
 floatString :: Double -> String
-floatString t = printf "%.2f" t
+floatString = printf "%.2f"
 
 titledCode title code codeFont = Title title
                               <> Raw (pure (\window -> drawLines codeFont (255,255,255) (leftMargin, 150) window code))
 
-drawLines font color (x,y) window lines = do
+drawLines font color (x,y) window lines = 
     forEachI lines $ \(line, position) -> do
       let line' = if null line then " " else line
       (width, height) <- SDLF.textSize font line' 
@@ -331,7 +331,7 @@ stars = accum modifier []
 randomStar :: MonadRandom m => Wire e m a (Int, Int)
 randomStar = liftA2 (,) (pure (0,800) >>> noiseRM) (pure (0,600) >>> noiseRM)
 
-timeCycle = timeFrom 17 >>^ (\t -> t `mod'` 24)
+timeCycle = timeFrom 17 >>^ (`mod'` 24)
 
 renderObject font s@(ObjectState (x, y) _) window = do
     drawString window (255,255,255) (showObj s) font (leftMargin, 150)
