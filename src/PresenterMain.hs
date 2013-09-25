@@ -24,6 +24,7 @@ import SDLStuff
 import BFPG
 import DataStructures
 import System.Directory
+import Resources (resourcePath)
 
 data Theme = Theme { 
            _titleFont :: Font, 
@@ -39,7 +40,7 @@ macFont f s = do
                    , "/Users/nkpart/Library/Fonts/"
                    , "/Library/Fonts/Microsoft/"
                    ]
-        paths = fmap (++ f) prefixes
+        paths = resourcePath f : fmap (++ f) []
     toOpen <- head <$> M.filterM doesFileExist paths
     SDLF.openFont toOpen s
 
